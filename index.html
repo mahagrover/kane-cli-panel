@@ -131,7 +131,7 @@ function gh(path, opts = {}) {
   return fetch(`${API}${path}`, {
     ...opts,
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `token ${token}`,
       Accept: 'application/vnd.github+json',
       ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
       ...(opts.headers || {}),
