@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kane CLI Assurance — GitHub Control Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #121622; --panel-2: #171c2b; --border: #262c3f;
+    --text: #e6e9f2; --text-dim: #8c93a8; --accent: #6ea8fe; --green: #35d399;
+    --red: #ff6b6b; --amber: #ffcc66;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  header { padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  header h1 { font-size:17px; margin:0; font-weight:600; }
+  header .sub { color:var(--text-dim); font-size:12px; margin-top:2px; }
+  .wrap { max-width:900px; margin:0 auto; padding:20px 16px 60px; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-bottom:18px; }
+  .panel h2 { font-size:14px; margin:0 0 12px; }
+  .panel p.hint { color:var(--text-dim); font-size:12.5px; margin-top:-6px; margin-bottom:14px; }
+  input[type=text], input[type=password], textarea {
+    width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:9px 11px; font-size:13px; font-family:inherit;
+  }
+  textarea { font-family:ui-monospace,Consolas,monospace; resize:vertical; }
+  button {
+    background:var(--accent); color:#0b0e14; border:none; border-radius:8px;
+    padding:9px 15px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  button.secondary { background:var(--panel-2); color:var(--text); border:1px solid var(--border); }
+  button.danger { background:var(--red); color:#1a0505; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  button + button { margin-left:8px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .issue-list { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .issue-item {
+    display:flex; justify-content:space-between; align-items:center; padding:9px 12px;
+    border:1px solid var(--border); border-radius:8px; background:var(--panel-2); cursor:pointer; font-size:13px;
+  }
+  .issue-item:hover { border-color:var(--accent); }
+  .issue-item.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .badge { font-size:10px; padding:2px 7px; border-radius:999px; border:1px solid var(--border); color:var(--text-dim); white-space:nowrap; }
+  .usecase-list { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+  .usecase { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--panel-2); font-size:13px; }
+  .usecase .title { flex:1; }
+  .timeline { display:flex; flex-direction:column; gap:10px; }
+  .tl-item { border:1px solid var(--border); border-radius:8px; padding:10px 12px; background:var(--panel-2); font-size:13px; }
+  .tl-item .meta { color:var(--text-dim); font-size:11px; margin-bottom:6px; }
+  .tl-item.report { background:#0f1a14; border-color:var(--green); }
+  .tl-item.report table { width:100%; border-collapse:collapse; font-size:12.5px; margin:8px 0; }
+  .tl-item.report th, .tl-item.report td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--border); }
+  .spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:6px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .muted { color:var(--text-dim); font-size:12.5px; }
+  a { color:var(--accent); text-decoration:none; }
+  .token-ok { color:var(--green); font-size:12.5px; }
+  code { background:var(--panel-2); padding:1px 5px; border-radius:4px; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Kane CLI Assurance — Control Panel</h1>
+    <div class="sub">PRD → use-cases → design → run → report, driven from one page</div>
+  </div>
+  <a href="https://github.com/mahagrover/kane-cli-assurance-demo" target="_blank">repo ↗</a>
+</header>
+
+<div class="wrap">
+
+  <div class="panel" id="panel-token">
+    <h2>GitHub access token</h2>
+    <p class="hint">Stays only in this browser's local storage. Sent directly to api.github.com — nowhere else.</p>
+    <div class="row">
+      <input type="password" id="token-input" placeholder="github_pat_..." style="flex:1" />
+      <button id="btn-save-token">Save</button>
+      <button class="secondary" id="btn-clear-token">Clear</button>
+    </div>
+    <div id="token-status" style="margin-top:8px"></div>
+  </div>
+
+  <div class="panel" id="panel-issues" style="display:none">
+    <h2>1 · PRD submissions</h2>
+    <p class="hint">Pick an existing one to resume, or submit a new PRD.</p>
+    <div class="issue-list" id="issue-list"></div>
+    <button class="secondary" id="btn-refresh-issues">Refresh list</button>
+    <button id="btn-new-prd">+ New PRD</button>
+  </div>
+
+  <div class="panel" id="panel-new" style="display:none">
+    <h2>Submit a new PRD</h2>
+    <div class="row" style="margin-bottom:10px">
+      <input type="text" id="new-title" placeholder="PRD title" style="flex:1" />
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <input type="file" id="new-file" accept=".md,.txt" />
+      <span class="muted">or paste directly below</span>
+    </div>
+    <textarea id="new-body" rows="12" placeholder="# PRD: ...&#10;&#10;## Use Cases&#10;..."></textarea>
+    <div style="margin-top:10px">
+      <button id="btn-submit-prd">Submit PRD</button>
+      <button class="secondary" id="btn-cancel-new">Cancel</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-active" style="display:none">
+    <h2>2 · <span id="active-title"></span> <a id="active-link" target="_blank" style="font-size:12px">(open on GitHub ↗)</a></h2>
+    <div id="usecase-area"></div>
+  </div>
+
+  <div class="panel" id="panel-timeline" style="display:none">
+    <h2>3 · Progress &amp; report</h2>
+    <div class="timeline" id="timeline"></div>
+  </div>
+
+</div>
+
+<script>
+const OWNER = 'mahagrover';
+const REPO = 'kane-cli-assurance-demo';
+const API = `https://api.github.com/repos/${OWNER}/${REPO}`;
+
+const el = id => document.getElementById(id);
+let token = localStorage.getItem('kane_gh_token') || '';
+let activeIssue = null;
+let pollTimer = null;
+
+function gh(path, opts = {}) {
+  return fetch(`${API}${path}`, {
+    ...opts,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(opts.headers || {}),
+    },
+  }).then(async res => {
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${body.slice(0, 200)}`);
+    }
+    return res.status === 204 ? null : res.json();
+  });
+}
+
+function renderTokenStatus(msg, ok) {
+  el('token-status').innerHTML = ok
+    ? `<span class="token-ok">✓ ${msg}</span>`
+    : `<span style="color:var(--red)">${msg}</span>`;
+}
+
+async function checkToken() {
+  if (!token) { showTokenPrompt(); return; }
+  try {
+    await gh('');
+    renderTokenStatus('Token works — connected to the repo.', true);
+    el('panel-issues').style.display = '';
+    loadIssues();
+  } catch (e) {
+    renderTokenStatus(`Token check failed: ${e.message}`, false);
+  }
+}
+
+function showTokenPrompt() {
+  el('panel-issues').style.display = 'none';
+  el('panel-active').style.display = 'none';
+  el('panel-timeline').style.display = 'none';
+}
+
+el('btn-save-token').onclick = () => {
+  token = el('token-input').value.trim();
+  if (!token) return;
+  localStorage.setItem('kane_gh_token', token);
+  el('token-input').value = '';
+  checkToken();
+};
+el('btn-clear-token').onclick = () => {
+  localStorage.removeItem('kane_gh_token');
+  token = '';
+  showTokenPrompt();
+  renderTokenStatus('Token cleared.', true);
+};
+
+async function loadIssues() {
+  const issues = await gh('/issues?labels=prd-submission&state=all&sort=created&direction=desc&per_page=20');
+  const list = el('issue-list');
+  list.innerHTML = '';
+  if (issues.length === 0) {
+    list.innerHTML = '<div class="muted">No PRD submissions yet.</div>';
+  }
+  for (const issue of issues) {
+    const row = document.createElement('div');
+    row.className = 'issue-item' + (activeIssue && activeIssue.number === issue.number ? ' active' : '');
+    row.innerHTML = `<span>#${issue.number} ${issue.title}</span><span class="badge">${issue.state}</span>`;
+    row.onclick = () => selectIssue(issue.number);
+    list.appendChild(row);
+  }
+}
+el('btn-refresh-issues').onclick = loadIssues;
+
+el('btn-new-prd').onclick = () => { el('panel-new').style.display = ''; };
+el('btn-cancel-new').onclick = () => { el('panel-new').style.display = 'none'; };
+el('new-file').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { el('new-body').value = reader.result; };
+  reader.readAsText(file);
+};
+
+el('btn-submit-prd').onclick = async () => {
+  const title = el('new-title').value.trim() || 'PRD: (untitled)';
+  const content = el('new-body').value.trim();
+  if (!content) { alert('Paste or upload PRD content first.'); return; }
+  const body = `### PRD content (Markdown)\n\n${content}\n`;
+  el('btn-submit-prd').disabled = true;
+  try {
+    const issue = await gh('/issues', {
+      method: 'POST',
+      body: JSON.stringify({ title: `PRD: ${title}`.replace(/^PRD: PRD: /, 'PRD: '), body, labels: ['prd-submission'] }),
+    });
+    el('panel-new').style.display = 'none';
+    el('new-title').value = ''; el('new-body').value = ''; el('new-file').value = '';
+    await loadIssues();
+    selectIssue(issue.number);
+  } catch (e) {
+    alert('Failed to create issue: ' + e.message);
+  } finally {
+    el('btn-submit-prd').disabled = false;
+  }
+};
+
+function parseChecklist(body) {
+  const marker = '## Extracted use-cases';
+  const idx = body.indexOf(marker);
+  if (idx === -1) return null;
+  const section = body.slice(idx);
+  const items = [...section.matchAll(/-\s\[( |x)\]\s`([a-zA-Z0-9_-]+)`\s(.+?)\s_\(([a-z]+)\)_/gi)]
+    .map(m => ({ checked: m[1].toLowerCase() === 'x', id: m[2], title: m[3], trust: m[4] }));
+  return items;
+}
+
+async function selectIssue(number) {
+  await loadIssues(); // refresh active highlight state first (cheap)
+  const issue = await gh(`/issues/${number}`);
+  activeIssue = issue;
+  await loadIssues();
+  el('panel-active').style.display = '';
+  el('panel-timeline').style.display = '';
+  el('active-title').textContent = `#${issue.number} ${issue.title}`;
+  el('active-link').href = issue.html_url;
+  renderUsecases(issue.body || '');
+  await refreshTimeline();
+  startPolling();
+}
+
+function renderUsecases(body) {
+  const items = parseChecklist(body);
+  const area = el('usecase-area');
+  if (!items) {
+    area.innerHTML = '<div class="muted"><span class="spinner"></span>Waiting for use-case extraction…</div>';
+    return;
+  }
+  if (items.length === 0) {
+    area.innerHTML = '<div class="muted">No use-cases found.</div>';
+    return;
+  }
+  const list = document.createElement('div');
+  list.className = 'usecase-list';
+  for (const it of items) {
+    const row = document.createElement('label');
+    row.className = 'usecase';
+    row.innerHTML = `
+      <input type="checkbox" data-id="${it.id}" ${it.checked ? 'checked' : ''} />
+      <span class="title">${it.title} <span class="muted">(${it.id})</span></span>
+      <span class="badge">${it.trust}</span>
+    `;
+    list.appendChild(row);
+  }
+  area.innerHTML = '';
+  area.appendChild(list);
+  const row = document.createElement('div');
+  row.style.marginTop = '12px';
+  row.innerHTML = `<button id="btn-save-selection">Save selections</button>
+                    <button id="btn-run-design">Design &amp; Run selected →</button>`;
+  area.appendChild(row);
+  el('btn-save-selection').onclick = () => saveSelection(false);
+  el('btn-run-design').onclick = () => saveSelection(true);
+}
+
+async function saveSelection(thenRun) {
+  const checks = [...document.querySelectorAll('#usecase-area input[type=checkbox]')];
+  const checkedIds = new Set(checks.filter(c => c.checked).map(c => c.dataset.id));
+  const issue = await gh(`/issues/${activeIssue.number}`);
+  const body = issue.body || '';
+  const marker = '## Extracted use-cases';
+  const idx = body.indexOf(marker);
+  if (idx === -1) { alert('Checklist not ready yet.'); return; }
+  const before = body.slice(0, idx);
+  const section = body.slice(idx).replace(
+    /-\s\[( |x)\]\s`([a-zA-Z0-9_-]+)`(.+)/gi,
+    (m, _chk, id, rest) => `- [${checkedIds.has(id) ? 'x' : ' '}] \`${id}\`${rest}`
+  );
+  await gh(`/issues/${activeIssue.number}`, { method: 'PATCH', body: JSON.stringify({ body: before + section }) });
+  activeIssue.body = before + section;
+  renderUsecases(activeIssue.body);
+  if (thenRun) {
+    if (checkedIds.size === 0) { alert('Tick at least one use-case first.'); return; }
+    await gh(`/issues/${activeIssue.number}/comments`, { method: 'POST', body: JSON.stringify({ body: '/design' }) });
+    await refreshTimeline();
+  }
+}
+
+function commentClass(body) {
+  if (body.startsWith('## Test run report')) return 'report';
+  return '';
+}
+
+async function refreshTimeline() {
+  if (!activeIssue) return;
+  const comments = await gh(`/issues/${activeIssue.number}/comments?per_page=50`);
+  const tl = el('timeline');
+  tl.innerHTML = '';
+  if (comments.length === 0) {
+    tl.innerHTML = '<div class="muted"><span class="spinner"></span>Waiting for the pipeline…</div>';
+    return;
+  }
+  for (const c of comments) {
+    const div = document.createElement('div');
+    div.className = 'tl-item ' + commentClass(c.body);
+    const when = new Date(c.created_at).toLocaleString();
+    div.innerHTML = `<div class="meta">${c.user.login} · ${when}</div>${marked.parse(c.body)}`;
+    tl.appendChild(div);
+  }
+  const hasReport = comments.some(c => c.body.startsWith('## Test run report'));
+  const latest = comments[comments.length - 1];
+  const waiting = !hasReport && (latest.body.includes('starting now') || latest.body.includes('/design') || latest.body.includes('checklist added'));
+  if (waiting) {
+    const div = document.createElement('div');
+    div.className = 'muted';
+    div.innerHTML = '<span class="spinner"></span>Working — this can take a few minutes for design + a live test run…';
+    tl.appendChild(div);
+  }
+  // Also refresh the use-case checklist in case it just landed or changed.
+  const freshIssue = await gh(`/issues/${activeIssue.number}`);
+  activeIssue.body = freshIssue.body;
+  renderUsecases(activeIssue.body);
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(refreshTimeline, 10000);
+}
+
+checkToken();
+</script>
+</body>
+</html>
